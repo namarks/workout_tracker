@@ -64,3 +64,21 @@ node_modules/
 
 # dotenv environment variables file
 .env
+
+# Node.js dependencies
+/node_modules
+
+# macOS system files
+.DS_Store
+
+# Firebase configuration files
+.firebase
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Build directories
+/build
+/dist
