@@ -1,4 +1,3 @@
-// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCwaQqwlODdrtpRFnwuX1QpQc8YPx1sL0s",
   authDomain: "nicks-training.firebaseapp.com",
@@ -9,118 +8,74 @@ const firebaseConfig = {
   measurementId: "G-LCJ339QFBN"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.firestore();
-const analytics = firebase.analytics();
-const workoutsRef = db.collection('workouts');
 
-// Set default date to today's date
-window.onload = function() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-  const dd = String(today.getDate()).padStart(2, '0');
-  const formattedToday = `${yyyy}-${mm}-${dd}`;
-  document.getElementById('date').value = formattedToday;
-};
+console.log("Script loaded and Firebase initialized.");
 
-// Handle form submission
-const workoutForm = document.getElementById('workoutForm');
-workoutForm.addEventListener('submit', (event) => {
+// Ensure session persistence
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .then(() => {
+    console.log("Session persistence set to LOCAL.");
+  })
+  .catch((error) => {
+    console.error("Error setting persistence:", error);
+  });
+
+// Handle sign-up form submission
+const signUpForm = document.getElementById('signUpForm');
+signUpForm.addEventListener('submit', (event) => {
   event.preventDefault();
+  console.log("Sign-up form submitted.");
 
-  const date = document.getElementById('date').value;
-  const exercise = document.getElementById('exercise').value;
-  const sets = document.getElementById('sets').value;
-  const reps = document.getElementById('reps').value;
+  const name = document.getElementById('name').value;
+  const email = document.getElementById('signUpEmail').value;
+  const password = document.getElementById('signUpPassword').value;
 
-  const newWorkout = {
-    date: date,
-    exercise: exercise,
-    sets: sets,
-    reps: reps
-  };
-
-   // ** Log the event to analytics **
-  analytics.logEvent('workout_logged', { // NEW: Log event
-    date: date,
-    exercise: exercise,
-    sets: sets,
-    reps: reps
-  });
-
-  const workoutId = workoutForm.dataset.id;
-
-  if (workoutId) {
-    // Update existing workout
-    workoutsRef.doc(workoutId).update(newWorkout).then(() => {
-      console.log('Workout updated!');
-      workoutForm.reset(); // Clear the form
-      delete workoutForm.dataset.id; // Remove edit mode
-      document.getElementById('date').value = new Date().toISOString().split('T')[0]; // Reset date to today
-    }).catch((error) => {
-      console.error('Error updating workout: ', error);
+  auth.createUserWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      console.log('User created:', user);
+      return user.updateProfile({
+        displayName: name
+      }).then(() => {
+        // Store user data in Firestore
+        return db.collection('users').doc(user.uid).set({
+          name: name,
+          email: email
+        });
+      });
+    })
+    .then(() => {
+      console.log('User signed up and data stored in Firestore');
+      document.getElementById('signUpForm').reset();
+      window.location.href = "main.html"; // Redirect to main.html
+    })
+    .catch((error) => {
+      console.error('Error signing up:', error);
+      alert('Error signing up: ' + error.message); // Display error message to the user
     });
-  } else {
-    // Add new workout
-    workoutsRef.add(newWorkout).then(() => {
-      console.log('Workout added!');
-      workoutForm.reset(); // Clear the form
-      document.getElementById('date').value = new Date().toISOString().split('T')[0]; // Reset date to today
-    }).catch((error) => {
-      console.error('Error adding workout: ', error);
-    });
-  }
 });
 
-// Function to edit a workout
-function editWorkout(id, date, exercise, sets, reps) {
-  document.getElementById('date').value = date;
-  document.getElementById('exercise').value = exercise;
-  document.getElementById('sets').value = sets;
-  document.getElementById('reps').value = reps;
-  document.getElementById('workoutForm').dataset.id = id;
-}
+// Handle sign-in form submission
+const signInForm = document.getElementById('signInForm');
+signInForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  console.log("Sign-in form submitted.");
 
-// Function to delete a workout
-function deleteWorkout(id) {
-  workoutsRef.doc(id).delete().then(() => {
-    console.log('Workout deleted!');
-  }).catch((error) => {
-    console.error('Error deleting workout: ', error);
-  });
-}
+  const email = document.getElementById('signInEmail').value;
+  const password = document.getElementById('signInPassword').value;
 
-// Display workouts
-workoutsRef.onSnapshot((snapshot) => {
-  const workoutTableBody = document.getElementById('workoutTableBody');
-  workoutTableBody.innerHTML = ''; // Clear previous data
-
-  snapshot.forEach((doc) => {
-    const workout = doc.data();
-    const workoutRow = document.createElement('tr');
-    workoutRow.innerHTML = `
-      <td><input type="date" value="${workout.date}" onchange="updateField('${doc.id}', 'date', this.value)"></td>
-      <td><input type="text" value="${workout.exercise}" onchange="updateField('${doc.id}', 'exercise', this.value)"></td>
-      <td><input type="number" value="${workout.sets}" onchange="updateField('${doc.id}', 'sets', this.value)"></td>
-      <td><input type="number" value="${workout.reps}" onchange="updateField('${doc.id}', 'reps', this.value)"></td>
-      <td>
-        <button class="edit-btn" onclick="editWorkout('${doc.id}', '${workout.date}', '${workout.exercise}', '${workout.sets}', '${workout.reps}')">Edit</button>
-        <button class="delete-btn" onclick="deleteWorkout('${doc.id}')">Delete</button>
-      </td>
-    `;
-    workoutTableBody.appendChild(workoutRow);
-  });
+  auth.signInWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      console.log("Signed in user ID (UID):", user.uid);
+      document.getElementById('signInForm').reset();
+      window.location.href = "main.html"; // Redirect to main.html
+    })
+    .catch((error) => {
+      console.error('Error signing in:', error);
+      alert('Error signing in: ' + error.message); // Display error message to the user
+    });
 });
-
-// Function to update a field in Firestore
-function updateField(id, field, value) {
-  const updateData = {};
-  updateData[field] = value;
-  workoutsRef.doc(id).update(updateData).then(() => {
-    console.log('Field updated!');
-  }).catch((error) => {
-    console.error('Error updating field: ', error);
-  });
-}
